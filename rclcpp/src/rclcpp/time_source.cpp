@@ -118,10 +118,23 @@ void TimeSource::attachNode(
       return result;
     });
 
+  const rclcpp::QoS qos = (
+      rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_parameter_events))
+    );
+
+  rclcpp::SubscriptionOptionsBase options_base;
+  options_base.content_filter_options.filter_expression
+    = "node MATCH %0";
+  std::string parameter_value = std::string("'") + node_base_->get_fully_qualified_name() + "'";
+  options_base.content_filter_options.expression_parameters = {parameter_value};
+  rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> options(options_base);
+
   // TODO(tfoote) use parameters interface not subscribe to events via topic ticketed #609
   parameter_subscription_ = rclcpp::AsyncParametersClient::on_parameter_event(
     node_topics_,
-    std::bind(&TimeSource::on_parameter_event, this, std::placeholders::_1));
+    std::bind(&TimeSource::on_parameter_event, this, std::placeholders::_1),
+    qos,
+    options);
 }
 
 void TimeSource::detachNode()
@@ -260,6 +273,7 @@ void TimeSource::destroy_clock_sub()
 
 void TimeSource::on_parameter_event(const rcl_interfaces::msg::ParameterEvent::SharedPtr event)
 {
+  RCLCPP_DEBUG(logger_, "this node should not get others' parameter event if CFT is supported");
   // Filter out events on 'use_sim_time' parameter instances in other nodes.
   if (event->node != node_base_->get_fully_qualified_name()) {
     return;
