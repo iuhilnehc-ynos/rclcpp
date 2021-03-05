@@ -307,6 +307,11 @@ ServerBase::execute_goal_request_received(std::shared_ptr<void> & data)
     return;
   }
 
+  String node = get_node_from_goal_request(message.get());
+  RCLCPP_DEBUG(
+    rclcpp::get_logger("rclcpp_action"),
+    "get_node_from_goal_request: %s", node.data.c_str());
+
   GoalUUID uuid = get_goal_id_from_goal_request(message.get());
   convert(uuid, &goal_info);
 
@@ -372,7 +377,7 @@ ServerBase::execute_goal_request_received(std::shared_ptr<void> & data)
     publish_status();
 
     // Tell user to start executing action
-    call_goal_accepted_callback(handle, uuid, message);
+    call_goal_accepted_callback(handle, node, uuid, message);
   }
   data.reset();
 }

@@ -419,7 +419,8 @@ private:
   : ClientBase(
       node_base, node_graph, node_logging, action_name,
       rosidl_typesupport_cpp::get_action_type_support_handle<ActionT>(),
-      client_options)
+      client_options),
+    fq_node_name_(node_base->get_fully_qualified_name())
   {
   }
 
@@ -446,6 +447,7 @@ private:
     std::shared_future<typename GoalHandle::SharedPtr> future(promise->get_future());
     using GoalRequest = typename ActionT::Impl::SendGoalService::Request;
     auto goal_request = std::make_shared<GoalRequest>();
+    goal_request->node.data = fq_node_name_;
     goal_request->goal_id.uuid = this->generate_goal_id();
     goal_request->goal = goal;
     this->send_goal_request(
@@ -661,6 +663,12 @@ private:
     using FeedbackMessage = typename ActionT::Impl::FeedbackMessage;
     typename FeedbackMessage::SharedPtr feedback_message =
       std::static_pointer_cast<FeedbackMessage>(message);
+    const String & node = feedback_message->node;
+    RCLCPP_ERROR(
+      this->get_logger(),
+      "handle_feedback_message node: %s",
+      node.data.c_str());
+
     const GoalUUID & goal_id = feedback_message->goal_id.uuid;
     if (goal_handles_.count(goal_id) == 0) {
       RCLCPP_DEBUG(
@@ -776,6 +784,8 @@ private:
 
   std::map<GoalUUID, typename GoalHandle::WeakPtr> goal_handles_;
   std::mutex goal_handles_mutex_;
+
+  std::string fq_node_name_;
 };
 }  // namespace rclcpp_action
 

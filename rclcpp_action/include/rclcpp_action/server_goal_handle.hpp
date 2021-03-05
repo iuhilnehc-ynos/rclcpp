@@ -149,6 +149,7 @@ public:
   publish_feedback(std::shared_ptr<typename ActionT::Feedback> feedback_msg)
   {
     auto feedback_message = std::make_shared<typename ActionT::Impl::FeedbackMessage>();
+    feedback_message->node = node_;
     feedback_message->goal_id.uuid = uuid_;
     feedback_message->feedback = *feedback_msg;
     publish_feedback_(feedback_message);
@@ -234,6 +235,13 @@ public:
     return goal_;
   }
 
+  /// Get the node of the goal
+  const String &
+  get_node() const
+  {
+    return node_;
+  }
+
   /// Get the unique identifier of the goal
   const GoalUUID &
   get_goal_id() const
@@ -255,13 +263,14 @@ protected:
   /// \internal
   ServerGoalHandle(
     std::shared_ptr<rcl_action_goal_handle_t> rcl_handle,
+    String node,
     GoalUUID uuid,
     std::shared_ptr<const typename ActionT::Goal> goal,
     std::function<void(const GoalUUID &, std::shared_ptr<void>)> on_terminal_state,
     std::function<void(const GoalUUID &)> on_executing,
     std::function<void(std::shared_ptr<typename ActionT::Impl::FeedbackMessage>)> publish_feedback
   )
-  : ServerGoalHandleBase(rcl_handle), goal_(goal), uuid_(uuid),
+  : ServerGoalHandleBase(rcl_handle), node_(node), goal_(goal), uuid_(uuid),
     on_terminal_state_(on_terminal_state), on_executing_(on_executing),
     publish_feedback_(publish_feedback)
   {
@@ -269,6 +278,9 @@ protected:
 
   /// The user provided message describing the goal.
   const std::shared_ptr<const typename ActionT::Goal> goal_;
+
+  /// A node name for the goal request.
+  const String node_;
 
   /// A unique id for the goal request.
   const GoalUUID uuid_;

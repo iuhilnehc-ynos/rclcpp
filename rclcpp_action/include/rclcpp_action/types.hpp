@@ -19,6 +19,7 @@
 
 #include <action_msgs/msg/goal_status.hpp>
 #include <action_msgs/msg/goal_info.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <climits>
 #include <functional>
@@ -32,6 +33,7 @@ namespace rclcpp_action
 using GoalUUID = std::array<uint8_t, UUID_SIZE>;
 using GoalStatus = action_msgs::msg::GoalStatus;
 using GoalInfo = action_msgs::msg::GoalInfo;
+using String = std_msgs::msg::String;
 
 /// Convert a goal id to a human readable string.
 RCLCPP_ACTION_PUBLIC

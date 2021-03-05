@@ -161,6 +161,13 @@ protected:
   CancelResponse
   call_handle_cancel_callback(const GoalUUID & uuid) = 0;
 
+  /// Given a goal request message, return the node name contained within.
+  /// \internal
+  RCLCPP_ACTION_PUBLIC
+  virtual
+  String
+  get_node_from_goal_request(void * message) = 0;
+
   /// Given a goal request message, return the UUID contained within.
   /// \internal
   RCLCPP_ACTION_PUBLIC
@@ -182,7 +189,7 @@ protected:
   void
   call_goal_accepted_callback(
     std::shared_ptr<rcl_action_goal_handle_t> rcl_goal_handle,
-    GoalUUID uuid, std::shared_ptr<void> goal_request_message) = 0;
+    String node, GoalUUID uuid, std::shared_ptr<void> goal_request_message) = 0;
 
   /// Given a result request message, return the UUID contained within.
   /// \internal
@@ -375,7 +382,7 @@ protected:
   void
   call_goal_accepted_callback(
     std::shared_ptr<rcl_action_goal_handle_t> rcl_goal_handle,
-    GoalUUID uuid, std::shared_ptr<void> goal_request_message) override
+    String node, GoalUUID uuid, std::shared_ptr<void> goal_request_message) override
   {
     std::shared_ptr<ServerGoalHandle<ActionT>> goal_handle;
     std::weak_ptr<Server<ActionT>> weak_this = this->shared_from_this();
@@ -425,12 +432,20 @@ protected:
     auto goal = std::shared_ptr<const typename ActionT::Goal>(request, &request->goal);
     goal_handle.reset(
       new ServerGoalHandle<ActionT>(
-        rcl_goal_handle, uuid, goal, on_terminal_state, on_executing, publish_feedback));
+        rcl_goal_handle, node, uuid, goal, on_terminal_state, on_executing, publish_feedback));
     {
       std::lock_guard<std::mutex> lock(goal_handles_mutex_);
       goal_handles_[uuid] = goal_handle;
     }
     handle_accepted_(goal_handle);
+  }
+
+  /// \internal
+  String
+  get_node_from_goal_request(void * message) override
+  {
+    return
+      static_cast<typename ActionT::Impl::SendGoalService::Request *>(message)->node;
   }
 
   /// \internal
