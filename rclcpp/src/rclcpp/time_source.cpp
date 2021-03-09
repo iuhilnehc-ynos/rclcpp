@@ -122,12 +122,9 @@ void TimeSource::attachNode(
       rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_parameter_events))
     );
 
-  rclcpp::SubscriptionOptionsBase options_base;
-  options_base.content_filter_options.filter_expression
-    = "node MATCH %0";
-  std::string parameter_value = std::string("'") + node_base_->get_fully_qualified_name() + "'";
-  options_base.content_filter_options.expression_parameters = {parameter_value};
-  rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> options(options_base);
+  rclcpp::SubscriptionOptions options;
+  options.content_filter_options.filter_expression
+    = std::string("node MATCH '") + node_base_->get_fully_qualified_name() + "'";;
 
   // TODO(tfoote) use parameters interface not subscribe to events via topic ticketed #609
   parameter_subscription_ = rclcpp::AsyncParametersClient::on_parameter_event(
