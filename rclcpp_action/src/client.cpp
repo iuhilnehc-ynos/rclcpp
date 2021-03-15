@@ -389,7 +389,7 @@ ClientBase::generate_goal_id()
   pimpl_->goal_uuids.insert(goal_id);
   // to hide cft setting
   if (!set_content_filtered_topic()) {
-    RCLCPP_ERROR(
+    RCLCPP_DEBUG(
       get_logger(),
       "failed to set content filtered topic for action subscriptions: %s",
       rcl_get_error_string().str);
@@ -418,6 +418,8 @@ ClientBase::set_content_filtered_topic()
   std::string uuid;
   size_t size = pimpl_->goal_uuids.size();
   auto iter = pimpl_->goal_uuids.begin();
+  // The SQL Grammar of filter expression might be different for DDS implementations,
+  // especially for the usage of arrays and sequences.
   if (iter != pimpl_->goal_uuids.end()) {
     uuid = to_filter_string(*iter++);
     feedback_filter_string = "goal_id.uuid = &hex(" + uuid + ")";
