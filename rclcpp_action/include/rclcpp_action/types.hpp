@@ -38,6 +38,11 @@ RCLCPP_ACTION_PUBLIC
 std::string
 to_string(const GoalUUID & goal_id);
 
+/// Convert a goal id to a human readable string with 2 width per value.
+RCLCPP_ACTION_PUBLIC
+std::string
+to_filter_string(const GoalUUID & goal_id);
+
 // Convert C++ GoalID to rcl_action_goal_info_t
 RCLCPP_ACTION_PUBLIC
 void

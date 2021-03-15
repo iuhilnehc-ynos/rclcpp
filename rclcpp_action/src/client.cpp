@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <random>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -120,6 +121,10 @@ public:
 
   std::independent_bits_engine<
     std::default_random_engine, 8, unsigned int> random_bytes_generator;
+
+  // a set to store all goal uuid
+  std::set<GoalUUID> goal_uuids;
+  std::mutex goal_uuids_mutex;
 };
 
 ClientBase::ClientBase(
@@ -380,7 +385,88 @@ ClientBase::generate_goal_id()
   std::generate(
     goal_id.begin(), goal_id.end(),
     std::ref(pimpl_->random_bytes_generator));
+  std::lock_guard<std::mutex> guard(pimpl_->goal_uuids_mutex);
+  pimpl_->goal_uuids.insert(goal_id);
+  // to hide cft setting
+  if (!set_content_filtered_topic()) {
+    RCLCPP_ERROR(
+      get_logger(),
+      "failed to set content filtered topic for action subscriptions: %s",
+      rcl_get_error_string().str);
+    rcl_reset_error();
+  }
   return goal_id;
+}
+
+bool
+ClientBase::set_content_filtered_topic()
+{
+  rcl_subscription_t * feedback_subscription =
+    rcl_action_client_get_feedback_subscription(pimpl_->client_handle.get());
+  if (nullptr == feedback_subscription) {
+    return false;
+  }
+  rcl_subscription_t * status_subscription =
+    rcl_action_client_get_status_subscription(pimpl_->client_handle.get());
+  if (nullptr == status_subscription) {
+    return false;
+  }
+
+  // feedback
+  std::string feedback_filter_string;
+  std::string status_filter_string;
+  std::string uuid;
+  size_t size = pimpl_->goal_uuids.size();
+  auto iter = pimpl_->goal_uuids.begin();
+  if (iter != pimpl_->goal_uuids.end()) {
+    uuid = to_filter_string(*iter++);
+    feedback_filter_string = "goal_id.uuid = &hex(" + uuid + ")";
+
+    status_filter_string =
+      "status_list[" + std::to_string(0) + "].goal_info.goal_id.uuid = &hex(" + uuid + ")";
+    // it might be a burden
+    for (size_t i = 1; i < size; ++i) {
+      status_filter_string += " or ";
+      status_filter_string +=
+        "status_list[" + std::to_string(i) + "].goal_info.goal_id.uuid = &hex(" + uuid + ")";
+    }
+  }
+  for(; iter != pimpl_->goal_uuids.end(); ++iter) {
+    uuid = to_filter_string(*iter++);
+    feedback_filter_string += " or ";
+    feedback_filter_string += "goal_id.uuid = &hex(" + uuid + ")";
+
+    for (size_t i = 0; i < size; ++i) {
+      status_filter_string += " or ";
+      status_filter_string +=
+        "status_list[" + std::to_string(i) + "].goal_info.goal_id.uuid = &hex(" + uuid + ")";
+    }
+  }
+  rcl_ret_t ret = rcl_subscription_set_cft_expression_parameters(
+    feedback_subscription, feedback_filter_string.c_str(), NULL);
+  if (RCL_RET_OK != ret) {
+    return false;
+  }
+
+  // status
+  ret = rcl_subscription_set_cft_expression_parameters(
+    status_subscription, status_filter_string.c_str(), NULL);
+  if (RCL_RET_OK != ret) {
+    return false;
+  }
+
+  return true;
+}
+
+void
+ClientBase::delete_goal_id(const GoalUUID& goal_uuid)
+{
+  // todo, remove goal id if goal successed
+  std::lock_guard<std::mutex> guard(pimpl_->goal_uuids_mutex);
+  auto iter = pimpl_->goal_uuids.find(goal_uuid);
+  if (iter != pimpl_->goal_uuids.end()) {
+    pimpl_->goal_uuids.erase(iter);
+  }
 }
 
 std::shared_ptr<void>

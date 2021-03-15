@@ -30,6 +30,18 @@ to_string(const GoalUUID & goal_id)
   return stream.str();
 }
 
+std::string
+to_filter_string(const GoalUUID & goal_id)
+{
+  // if no need to update, just use to_string
+  std::stringstream stream;
+  stream << std::hex;
+  for (const auto & element : goal_id) {
+    stream << std::setfill('0') << std::setw(2) << static_cast<int>(element);
+  }
+  return stream.str();
+}
+
 void
 convert(const GoalUUID & goal_id, rcl_action_goal_info_t * info)
 {

@@ -161,6 +161,18 @@ protected:
   /// \internal
   RCLCPP_ACTION_PUBLIC
   virtual
+  bool
+  set_content_filtered_topic();
+
+  /// \internal
+  RCLCPP_ACTION_PUBLIC
+  virtual
+  void
+  delete_goal_id(const GoalUUID& goal_uuid);
+
+  /// \internal
+  RCLCPP_ACTION_PUBLIC
+  virtual
   void
   send_goal_request(
     std::shared_ptr<void> request,
@@ -715,6 +727,8 @@ private:
         continue;
       }
       goal_handle->set_status(status.status);
+
+      // todo, remove goal_id from goal_uuids for cft
     }
   }
 
