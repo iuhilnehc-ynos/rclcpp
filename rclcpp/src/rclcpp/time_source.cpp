@@ -125,7 +125,7 @@ void TimeSource::attachNode(
   rclcpp::SubscriptionOptions options;
   // TODO(iuhilnehc-ynos) Currently, SQL grammar can support to filter array with
   // "new_parameters[0].name.data MATCH 'use_sim_time' or
-  // new_parameters[1].name.data MATCH 'use_sim_time' or ..."
+  // new_parameters[1].name.data MATCH 'use_sim_time' or ..." on rmw_connextdds
   // but it's impossible to know how many parameters this subscription will receive,
   // so ignore setting parameter name for 'use_sim_time'.
   // If SQL grammar can filter array with
