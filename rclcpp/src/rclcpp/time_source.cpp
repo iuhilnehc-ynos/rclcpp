@@ -118,10 +118,28 @@ void TimeSource::attachNode(
       return result;
     });
 
+  const rclcpp::QoS qos = (
+      rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_parameter_events))
+    );
+
+  rclcpp::SubscriptionOptions options;
+  // TODO(iuhilnehc-ynos) Currently, SQL grammar can support to filter array with
+  // "new_parameters[0].name.data MATCH 'use_sim_time' or
+  // new_parameters[1].name.data MATCH 'use_sim_time' or ..."
+  // but it's impossible to know how many parameters this subscription will receive,
+  // so ignore setting parameter name for 'use_sim_time'.
+  // If SQL grammar can filter array with
+  // "new_parameters[].name.data MATCH 'use_sim_time'" or other non-number related statement,
+  // I'll update it in the future.
+  options.content_filter_options.filter_expression
+    = std::string("node MATCH '") + node_base_->get_fully_qualified_name() + "'";
+
   // TODO(tfoote) use parameters interface not subscribe to events via topic ticketed #609
   parameter_subscription_ = rclcpp::AsyncParametersClient::on_parameter_event(
     node_topics_,
-    std::bind(&TimeSource::on_parameter_event, this, std::placeholders::_1));
+    std::bind(&TimeSource::on_parameter_event, this, std::placeholders::_1),
+    qos,
+    options);
 }
 
 void TimeSource::detachNode()
@@ -260,6 +278,7 @@ void TimeSource::destroy_clock_sub()
 
 void TimeSource::on_parameter_event(const rcl_interfaces::msg::ParameterEvent::SharedPtr event)
 {
+  RCLCPP_DEBUG(logger_, "this node should not get others' parameter event if CFT is supported");
   // Filter out events on 'use_sim_time' parameter instances in other nodes.
   if (event->node != node_base_->get_fully_qualified_name()) {
     return;
