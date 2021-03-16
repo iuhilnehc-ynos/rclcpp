@@ -31,9 +31,8 @@ to_string(const GoalUUID & goal_id)
 }
 
 std::string
-to_filter_string(const GoalUUID & goal_id)
+to_cft_string(const GoalUUID & goal_id)
 {
-  // if no need to update, just use to_string
   std::stringstream stream;
   stream << std::hex;
   for (const auto & element : goal_id) {

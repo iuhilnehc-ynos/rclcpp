@@ -167,8 +167,14 @@ protected:
   /// \internal
   RCLCPP_ACTION_PUBLIC
   virtual
-  void
-  delete_goal_id(const GoalUUID& goal_uuid);
+  bool
+  add_goal_uuid(const GoalUUID& goal_uuid);
+
+  /// \internal
+  RCLCPP_ACTION_PUBLIC
+  virtual
+  bool
+  remove_goal_uuid(const GoalUUID& goal_uuid);
 
   /// \internal
   RCLCPP_ACTION_PUBLIC
@@ -727,8 +733,15 @@ private:
         continue;
       }
       goal_handle->set_status(status.status);
-
-      // todo, remove goal_id from goal_uuids for cft
+      switch (status.status) {
+        case GoalStatus::STATUS_SUCCEEDED:
+        case GoalStatus::STATUS_ABORTED:
+        case GoalStatus::STATUS_CANCELED:
+          remove_goal_uuid(goal_id);
+          break;
+        default:
+          break;
+      }
     }
   }
 

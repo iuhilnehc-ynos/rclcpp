@@ -385,10 +385,8 @@ ClientBase::generate_goal_id()
   std::generate(
     goal_id.begin(), goal_id.end(),
     std::ref(pimpl_->random_bytes_generator));
-  std::lock_guard<std::mutex> guard(pimpl_->goal_uuids_mutex);
-  pimpl_->goal_uuids.insert(goal_id);
-  // to hide cft setting
-  if (!set_content_filtered_topic()) {
+
+  if (!add_goal_uuid(goal_id)) {
     RCLCPP_DEBUG(
       get_logger(),
       "failed to set content filtered topic for action subscriptions: %s",
@@ -421,7 +419,7 @@ ClientBase::set_content_filtered_topic()
   // The SQL Grammar of filter expression might be different for DDS implementations,
   // especially for the usage of arrays and sequences.
   if (iter != pimpl_->goal_uuids.end()) {
-    uuid = to_filter_string(*iter++);
+    uuid = to_cft_string(*iter++);
     feedback_filter_string = "goal_id.uuid = &hex(" + uuid + ")";
 
     status_filter_string =
@@ -434,7 +432,7 @@ ClientBase::set_content_filtered_topic()
     }
   }
   for(; iter != pimpl_->goal_uuids.end(); ++iter) {
-    uuid = to_filter_string(*iter++);
+    uuid = to_cft_string(*iter++);
     feedback_filter_string += " or ";
     feedback_filter_string += "goal_id.uuid = &hex(" + uuid + ")";
 
@@ -460,15 +458,24 @@ ClientBase::set_content_filtered_topic()
   return true;
 }
 
-void
-ClientBase::delete_goal_id(const GoalUUID& goal_uuid)
+bool
+ClientBase::add_goal_uuid(const GoalUUID& goal_uuid)
 {
-  // todo, remove goal id if goal successed
+  std::lock_guard<std::mutex> guard(pimpl_->goal_uuids_mutex);
+  pimpl_->goal_uuids.insert(goal_uuid);
+  return set_content_filtered_topic();
+}
+
+bool
+ClientBase::remove_goal_uuid(const GoalUUID& goal_uuid)
+{
   std::lock_guard<std::mutex> guard(pimpl_->goal_uuids_mutex);
   auto iter = pimpl_->goal_uuids.find(goal_uuid);
   if (iter != pimpl_->goal_uuids.end()) {
     pimpl_->goal_uuids.erase(iter);
+    return set_content_filtered_topic();
   }
+  return false;
 }
 
 std::shared_ptr<void>
