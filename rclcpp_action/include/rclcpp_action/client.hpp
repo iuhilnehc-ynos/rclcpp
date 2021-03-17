@@ -162,12 +162,6 @@ protected:
   RCLCPP_ACTION_PUBLIC
   virtual
   bool
-  set_content_filtered_topic();
-
-  /// \internal
-  RCLCPP_ACTION_PUBLIC
-  virtual
-  bool
   add_goal_uuid(const GoalUUID& goal_uuid);
 
   /// \internal
@@ -465,6 +459,13 @@ private:
     using GoalRequest = typename ActionT::Impl::SendGoalService::Request;
     auto goal_request = std::make_shared<GoalRequest>();
     goal_request->goal_id.uuid = this->generate_goal_id();
+    if (!add_goal_uuid(goal_request->goal_id.uuid)) {
+      RCLCPP_DEBUG(
+        get_logger(),
+        "failed to set content filtered topic for action subscriptions: %s",
+        rcl_get_error_string().str);
+      rcl_reset_error();
+    }
     goal_request->goal = goal;
     this->send_goal_request(
       std::static_pointer_cast<void>(goal_request),
@@ -737,7 +738,7 @@ private:
         case GoalStatus::STATUS_SUCCEEDED:
         case GoalStatus::STATUS_ABORTED:
         case GoalStatus::STATUS_CANCELED:
-          remove_goal_uuid(goal_id);
+          static_cast<void>(remove_goal_uuid(goal_id));
           break;
         default:
           break;
