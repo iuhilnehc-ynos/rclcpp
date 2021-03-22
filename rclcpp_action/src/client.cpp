@@ -304,9 +304,26 @@ ClientBase::send_goal_request(std::shared_ptr<void> request, ResponseCallback ca
 {
   std::unique_lock<std::mutex> guard(pimpl_->goal_requests_mutex);
   int64_t sequence_number;
+  // goal_id, which type is unique_identifier_msgs::msg::UUID,
+  // is the first member in ActionT::Impl::SendGoalService::Request
+  auto goal_id = std::static_pointer_cast<unique_identifier_msgs::msg::UUID>(request);
+  if (!add_goal_uuid(goal_id->uuid)) {
+    RCLCPP_DEBUG(
+      get_logger(),
+      "failed to add goal uuid for setting content filtered topic for action subscriptions: %s",
+      rcl_get_error_string().str);
+    rcl_reset_error();
+  }
   rcl_ret_t ret = rcl_action_send_goal_request(
     pimpl_->client_handle.get(), request.get(), &sequence_number);
   if (RCL_RET_OK != ret) {
+    if (!remove_goal_uuid(goal_id->uuid)) {
+      RCLCPP_DEBUG(
+        get_logger(),
+        "failed to remove goal uuid: %s",
+        rcl_get_error_string().str);
+      rcl_reset_error();
+    }
     rclcpp::exceptions::throw_from_rcl_error(ret, "failed to send goal request");
   }
   assert(pimpl_->pending_goal_responses.count(sequence_number) == 0);
