@@ -121,6 +121,11 @@ Executor::~Executor()
     memory_strategy_->remove_guard_condition(guard_condition);
   }
   weak_nodes_to_guard_conditions_.clear();
+  for (const auto & pair : weak_groups_to_guard_conditions_) {
+    auto & guard_condition = pair.second;
+    memory_strategy_->remove_guard_condition(guard_condition);
+  }
+  weak_groups_to_guard_conditions_.clear();
 
   // Finalize the wait set.
   if (rcl_wait_set_fini(&wait_set_) != RCL_RET_OK) {
@@ -228,6 +233,9 @@ Executor::add_callback_group_to_map(
   if (is_new_node) {
     rclcpp::node_interfaces::NodeBaseInterface::WeakPtr node_weak_ptr(node_ptr);
     weak_nodes_to_guard_conditions_[node_weak_ptr] = node_ptr->get_notify_guard_condition();
+    rclcpp::CallbackGroup::WeakPtr group_weak_ptr(group_ptr);
+    weak_groups_to_guard_conditions_[group_weak_ptr] =
+      &group_ptr->get_notify_guard_condition()->get_rcl_guard_condition();
     if (notify) {
       // Interrupt waiting to handle new node
       rcl_ret_t ret = rcl_trigger_guard_condition(&interrupt_guard_condition_);
@@ -237,6 +245,9 @@ Executor::add_callback_group_to_map(
     }
     // Add the node's notify condition to the guard condition handles
     memory_strategy_->add_guard_condition(node_ptr->get_notify_guard_condition());
+    // Add the callback_group's notify condition to the guard condition handles
+    memory_strategy_->add_guard_condition(
+      &group_ptr->get_notify_guard_condition()->get_rcl_guard_condition());
   }
 }
 
@@ -312,6 +323,8 @@ Executor::remove_callback_group_from_map(
       }
     }
     memory_strategy_->remove_guard_condition(node_ptr->get_notify_guard_condition());
+    memory_strategy_->remove_guard_condition(
+      &group_ptr->get_notify_guard_condition()->get_rcl_guard_condition());
   }
 }
 
@@ -710,6 +723,12 @@ Executor::wait_for_work(std::chrono::nanoseconds timeout)
           weak_groups_associated_with_executor_to_nodes_.end())
           {
             weak_groups_associated_with_executor_to_nodes_.erase(group_ptr);
+          }
+          auto callback_guard_pair = weak_groups_to_guard_conditions_.find(group_ptr);
+          if (callback_guard_pair != weak_groups_to_guard_conditions_.end()) {
+            auto guard_condition = callback_guard_pair->second;
+            weak_groups_to_guard_conditions_.erase(group_ptr);
+            memory_strategy_->remove_guard_condition(guard_condition);
           }
           weak_groups_to_nodes_.erase(group_ptr);
         });
